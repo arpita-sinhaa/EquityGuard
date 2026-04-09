@@ -1,10 +1,40 @@
 import os
-import google.generativeai as genai
+import warnings
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY", "mock-key"))
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+genai = None
+legacy_genai = None
+
+try:
+    from google import genai  # type: ignore
+except Exception:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        try:
+            import google.generativeai as legacy_genai
+        except Exception:
+            legacy_genai = None
+
+if legacy_genai is not None and GEMINI_API_KEY:
+    legacy_genai.configure(api_key=GEMINI_API_KEY)
+
+
+def _generate_with_gemini(prompt: str) -> str:
+    if genai is not None:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+        return (response.text or "").strip()
+
+    if legacy_genai is not None:
+        model = legacy_genai.GenerativeModel("gemini-2.5-flash")
+        response = model.generate_content(prompt)
+        return (response.text or "").strip()
+
+    raise RuntimeError("No Gemini SDK is available")
 
 def generate_citizen_explanation(domain: str, disparity_ratio: float, sample_size: int) -> str:
-    if os.getenv("GEMINI_API_KEY") is None:
+    if GEMINI_API_KEY is None:
         return "Simulated Gemini Response: This statistical indication of bias reveals that historical approval rates for this group are substantially lower than the reference group. The disparity suggests systemic hurdles in this domain."
         
     prompt = f"""
@@ -20,9 +50,7 @@ STRICT CONSTRAINTS:
 - Only explain that this disparity indicates lower relative approval rates compared to references.
 """
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash") # Use gemini-2.5-flash which is standard and fast
-        response = model.generate_content(prompt)
-        return response.text.strip()
+        return _generate_with_gemini(prompt)
     except Exception as e:
         print(f"Gemini error: {e}")
         return "An error occurred while generating the explanation."
@@ -31,7 +59,7 @@ def generate_org_recommendation(domain: str, flagged_slices: list) -> str:
     if not flagged_slices:
         return "No statistical indications of bias were detected."
         
-    if os.getenv("GEMINI_API_KEY") is None:
+    if GEMINI_API_KEY is None:
         return "Simulated Gemini Response: Focus immediate reviews on the processes affecting the high-priority flagged slices. We recommend standardizing evaluation criteria and ensuring adequate oversight."
 
     slices_summary = ""
@@ -53,9 +81,7 @@ STRICT CONSTRAINTS:
 - Only rephrase the provided notes into an actionable advisory sentiment.
 """
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(prompt)
-        return response.text.strip()
+        return _generate_with_gemini(prompt)
     except Exception as e:
         print(f"Gemini error: {e}")
         return "An error occurred while generating the recommendation."

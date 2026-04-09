@@ -1,0 +1,18 @@
+sex,race,age_group,approval_rate,sample_size,disparity_ratio,relative_rate,fourfifths_breach,reference_approval_rate,domain,remediation_priority,remediation_note
+Female,Black,25-34,0.06435643564356436,202,4.89091875997122,0.2044605623353033,True,0.31476209841398944,hiring,high,Review hiring criteria for potential bias
+Female,Black,35-44,0.16267942583732056,209,1.934861134368347,0.5168329562454409,True,0.31476209841398944,hiring,medium,Review hiring criteria for potential bias
+Female,Black,45-54,0.16831683168316833,101,1.8700571729301725,0.5347430091846394,True,0.31476209841398944,hiring,medium,Review hiring criteria for potential bias
+Female,Black,55+,0.03571428571428571,112,8.813338755591705,0.1134643779992617,True,0.31476209841398944,hiring,high,Review hiring criteria for potential bias
+Female,White,25-34,0.15719063545150502,1196,2.002422711186869,0.499395055006784,True,0.31476209841398944,hiring,medium,Review hiring criteria for potential bias
+Female,White,35-44,0.2507462686567164,1005,1.255301225817696,0.7966215434455628,True,0.31476209841398944,hiring,low,Review hiring criteria for potential bias
+Female,White,45-54,0.260932944606414,686,1.206294969340764,0.8289846392599121,False,0.31476209841398944,hiring,low,Review hiring criteria for potential bias
+Female,White,55+,0.07586206896551724,1015,4.14913675182077,0.24101398912946626,True,0.31476209841398944,hiring,high,Review hiring criteria for potential bias
+Male,Asian-Pac-Islander,25-34,0.32456140350877194,114,0.9698075464647242,1.0311324176073258,False,0.31476209841398944,hiring,low,Review hiring criteria for potential bias
+Male,Asian-Pac-Islander,35-44,0.5365853658536586,123,0.5866020924987985,1.7047330938425664,False,0.31476209841398944,hiring,low,Review hiring criteria for potential bias
+Male,Black,25-34,0.22110552763819097,199,1.4235831269178159,0.7024528326386454,True,0.31476209841398944,hiring,low,Review hiring criteria for potential bias
+Male,Black,35-44,0.34705882352941175,170,0.9069416394979357,1.1026067791457668,False,0.31476209841398944,hiring,low,Review hiring criteria for potential bias
+Male,Black,55+,0.2830188679245283,106,1.112159414396096,0.8991516747111306,False,0.31476209841398944,hiring,low,Review hiring criteria for potential bias
+Male,White,25-34,0.31476209841398944,2459,1.0,1.0,False,0.31476209841398944,hiring,low,Review hiring criteria for potential bias
+Male,White,35-44,0.5407356479889996,2909,0.5820997738628705,1.7179185509107882,False,0.31476209841398944,hiring,low,Review hiring criteria for potential bias
+Male,White,45-54,0.6376190476190476,2100,0.4936522828001328,2.0257173618801527,False,0.31476209841398944,hiring,low,Review hiring criteria for potential bias
+Male,White,55+,0.3444743935309973,1855,0.9137459977432715,1.0943960383626903,False,0.31476209841398944,hiring,low,Review hiring criteria for potential bias
