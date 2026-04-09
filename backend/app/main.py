@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import citizen, audit
 import os
 from pathlib import Path
 
@@ -33,7 +32,6 @@ else:
     _load_env_fallback(env_path)
 
 print("Loaded .env from:", env_path)
-
 
 def _resolve_google_credentials() -> str | None:
     current = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -68,6 +66,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from app.routes import citizen, audit
 
 app.include_router(citizen.router, tags=["Citizen"])
 app.include_router(audit.router, tags=["Organization Audit"])

@@ -1,87 +1,125 @@
+import json
 import os
-import warnings
+import urllib.request
+import urllib.error
+from typing import Optional, List
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# -------------------------
+# CONFIG
+# -------------------------
+BASE_URL = "https://openrouter.ai/api/v1"
+DEFAULT_MODEL = "meta-llama/llama-3-8b-instruct"
 
-genai = None
-legacy_genai = None
-
-try:
-    from google import genai  # type: ignore
-except Exception:
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", FutureWarning)
-        try:
-            import google.generativeai as legacy_genai
-        except Exception:
-            legacy_genai = None
-
-if legacy_genai is not None and GEMINI_API_KEY:
-    legacy_genai.configure(api_key=GEMINI_API_KEY)
+# -------------------------
+# CORE CLIENT
+# -------------------------
+def _get_api_key() -> Optional[str]:
+    return os.getenv("OPENROUTER_API_KEY")
 
 
-def _generate_with_gemini(prompt: str) -> str:
-    if genai is not None:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
-        return (response.text or "").strip()
+def _call_openrouter(prompt: str, model: str = DEFAULT_MODEL) -> str:
+    api_key = _get_api_key()
+    if not api_key:
+        raise RuntimeError("OPENROUTER_API_KEY not set")
 
-    if legacy_genai is not None:
-        model = legacy_genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(prompt)
-        return (response.text or "").strip()
+    url = f"{BASE_URL}/chat/completions"
 
-    raise RuntimeError("No Gemini SDK is available")
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.2,
+        "max_tokens": 150
+    }
 
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        },
+        method="POST"
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            body = json.loads(response.read().decode())
+            return body["choices"][0]["message"]["content"].strip()
+
+    except urllib.error.HTTPError as e:
+        details = e.read().decode("utf-8", errors="ignore")
+        print(f"[OpenRouter ERROR {e.code}]: {details}")
+        raise
+
+    except Exception as e:
+        print(f"[OpenRouter UNKNOWN ERROR]: {e}")
+        raise
+
+
+# -------------------------
+# SAFE WRAPPER
+# -------------------------
+def _safe_generate(prompt: str) -> str:
+    try:
+        return _call_openrouter(prompt)
+    except Exception:
+        return "Explanation unavailable due to LLM service issue."
+
+
+# -------------------------
+# CITIZEN EXPLANATION
+# -------------------------
 def generate_citizen_explanation(domain: str, disparity_ratio: float, sample_size: int) -> str:
-    if GEMINI_API_KEY is None:
-        return "Simulated Gemini Response: This statistical indication of bias reveals that historical approval rates for this group are substantially lower than the reference group. The disparity suggests systemic hurdles in this domain."
-        
+    if _get_api_key() is None:
+        return (
+            "This result suggests a statistical indication of bias, "
+            "where this group experiences lower approval rates compared to others."
+        )
+
     prompt = f"""
-You are an expert in explaining statistical fairness metrics in plain language.
-A citizen bias check for the domain '{domain}' returned a statistical indication of bias.
-The disparity ratio is {disparity_ratio:.2f} based on a sample size of {sample_size}.
+Explain this bias result simply.
 
-Explain what this means to the user in 2-4 sentences.
-STRICT CONSTRAINTS:
-- DO NOT use the word "discrimination". Use "statistical indication of bias".
-- DO NOT calculate anything.
-- DO NOT generate new statistics or numbers. 
-- Only explain that this disparity indicates lower relative approval rates compared to references.
+Domain: {domain}
+Disparity ratio: {disparity_ratio:.2f}
+Sample size: {sample_size}
+
+Write 2 short sentences.
+Do not use the word discrimination.
 """
-    try:
-        return _generate_with_gemini(prompt)
-    except Exception as e:
-        print(f"Gemini error: {e}")
-        return "An error occurred while generating the explanation."
 
-def generate_org_recommendation(domain: str, flagged_slices: list) -> str:
+    return _safe_generate(prompt)
+
+
+# -------------------------
+# ORG RECOMMENDATION
+# -------------------------
+def generate_org_recommendation(domain: str, flagged_slices: List[dict]) -> str:
     if not flagged_slices:
-        return "No statistical indications of bias were detected."
-        
-    if GEMINI_API_KEY is None:
-        return "Simulated Gemini Response: Focus immediate reviews on the processes affecting the high-priority flagged slices. We recommend standardizing evaluation criteria and ensuring adequate oversight."
+        return "No statistical indications of bias detected."
 
-    slices_summary = ""
-    for s in flagged_slices[:3]:
-        slices_summary += f"- Slice: {s['sex']} {s['race']} {s['age_group']}, Disparity: {s['disparity_ratio']:.2f}, Note: {s['remediation_note']}\n"
-    
+    if _get_api_key() is None:
+        return (
+            "Focus on reviewing decision criteria and standardizing evaluation processes "
+            "to reduce potential bias."
+        )
+
+    top = flagged_slices[:3]
+
+    summary = "\n".join([
+        f"{s['sex']} {s['race']} {s['age_group']} (ratio {s['disparity_ratio']:.2f})"
+        for s in top
+    ])
+
     prompt = f"""
-You are an advisory expert on algorithmic fairness and auditing.
-An organization ran a bias audit in the domain '{domain}'. 
-The following top priority slices were flagged with a statistical indication of bias:
+Give a short recommendation for reducing bias in {domain}.
 
-{slices_summary}
+Flagged groups:
+{summary}
 
-Provide a 2-3 sentence recommendation for the organization on how to approach these indications.
-STRICT CONSTRAINTS:
-- DO NOT use the word "discrimination". Use "statistical indication of bias".
-- DO NOT calculate anything.
-- DO NOT generate any numbers or stats.
-- Only rephrase the provided notes into an actionable advisory sentiment.
+Write 2 sentences only.
+Do not use numbers or calculations.
 """
-    try:
-        return _generate_with_gemini(prompt)
-    except Exception as e:
-        print(f"Gemini error: {e}")
-        return "An error occurred while generating the recommendation."
+
+    return _safe_generate(prompt)
