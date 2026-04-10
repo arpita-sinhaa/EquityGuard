@@ -40,6 +40,43 @@ async def check_bias(request: CitizenBiasRequest):
         sample_size=slice_stats.get("sample_size", 0)
     )
     
+    # Generate counterfactuals
+    counterfactuals = []
+    if domain == "lending":
+        current_attrs = {
+            'gender': request.gender,
+            'education': request.education,
+            'income_group': request.income_group
+        }
+        references = {
+            'gender': 'Male',
+            'education': 'Graduate',
+            'income_group': 'high'
+        }
+    else:
+        current_attrs = {
+            'sex': request.sex,
+            'race': request.race,
+            'age_group': request.age_group
+        }
+        references = {
+            'sex': 'Male',
+            'race': 'White',
+            'age_group': '25-34'
+        }
+    
+    for attr, ref_val in references.items():
+        if current_attrs[attr] != ref_val:
+            new_attrs = current_attrs.copy()
+            new_attrs[attr] = ref_val
+            new_slice = get_intersectional_slice(request.domain, **new_attrs)
+            if new_slice and new_slice.get("sample_size", 0) >= min_sample_size:
+                counterfactuals.append({
+                    "changed_attribute": attr,
+                    "new_value": ref_val,
+                    "approval_rate": new_slice.get("approval_rate", 0.0)
+                })
+    
     # Check if a flag triggers explanation
     explanation = None
     is_flagged = False
@@ -63,5 +100,6 @@ async def check_bias(request: CitizenBiasRequest):
     return CitizenBiasResponse(
         status="OK",
         data=data,
-        explanation=explanation
+        explanation=explanation,
+        counterfactuals=counterfactuals if counterfactuals else None
     )
