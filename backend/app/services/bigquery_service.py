@@ -1,4 +1,6 @@
 import os
+import json
+import importlib
 from pathlib import Path
 from typing import Optional, Dict
 
@@ -9,6 +11,24 @@ PROJECT_ID = "equityguard-492819"
 DATASET = "bias_stats"
 
 bq_client = None
+
+
+def _build_bq_client():
+    from google.cloud import bigquery
+    service_account = importlib.import_module("google.oauth2.service_account")
+
+    raw = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+    if not raw:
+        raise RuntimeError("GOOGLE_APPLICATION_CREDENTIALS_JSON is not set")
+
+    try:
+        info = json.loads(raw)
+    except Exception as exc:
+        raise RuntimeError(f"Invalid GOOGLE_APPLICATION_CREDENTIALS_JSON: {exc}") from exc
+
+    credentials = service_account.Credentials.from_service_account_info(info)
+    project = info.get("project_id") or PROJECT_ID
+    return bigquery.Client(project=project, credentials=credentials)
 
 # -------------------------
 # ENV CHECK
@@ -99,7 +119,7 @@ def get_bigquery_slice(domain: str, **kwargs) -> Optional[Dict]:
         from google.cloud import bigquery
 
         if bq_client is None:
-            bq_client = bigquery.Client()
+            bq_client = _build_bq_client()
 
         table_id = get_table_id(domain)
 

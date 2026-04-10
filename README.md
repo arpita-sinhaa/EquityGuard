@@ -162,7 +162,7 @@ Create `backend/.env`:
 
 ```env
 USE_MOCK_DATA=false
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+GOOGLE_APPLICATION_CREDENTIALS_JSON={...service account json...}
 
 OPENROUTER_API_KEY=your_key
 OPENROUTER_API_URL=https://openrouter.ai/api/v1
