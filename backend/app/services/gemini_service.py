@@ -7,7 +7,7 @@ from typing import Optional, List
 # -------------------------
 # CONFIG
 # -------------------------
-BASE_URL = "https://openrouter.ai/api/v1"
+BASE_URL = os.getenv("OPENROUTER_API_URL", "https://openrouter.ai/api/v1").rstrip("/")
 DEFAULT_MODEL = "meta-llama/llama-3-8b-instruct"
 
 # -------------------------
@@ -38,7 +38,9 @@ def _call_openrouter(prompt: str, model: str = DEFAULT_MODEL) -> str:
         data=json.dumps(payload).encode("utf-8"),
         headers={
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "http://localhost:8000"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "EquityGuard")
         },
         method="POST"
     )
@@ -107,10 +109,16 @@ def generate_org_recommendation(domain: str, flagged_slices: List[dict]) -> str:
 
     top = flagged_slices[:3]
 
-    summary = "\n".join([
-        f"{s['sex']} {s['race']} {s['age_group']} (ratio {s['disparity_ratio']:.2f})"
-        for s in top
-    ])
+    if domain.lower() == "lending":
+        summary = "\n".join([
+            f"{s.get('gender', 'Unknown')} | {s.get('education', 'Unknown')} | {s.get('income_group', 'Unknown')} (ratio {s.get('disparity_ratio', 0):.2f})"
+            for s in top
+        ])
+    else:
+        summary = "\n".join([
+            f"{s.get('sex', 'Unknown')} | {s.get('race', 'Unknown')} | {s.get('age_group', 'Unknown')} (ratio {s.get('disparity_ratio', 0):.2f})"
+            for s in top
+        ])
 
     prompt = f"""
 Give a short recommendation for reducing bias in {domain}.

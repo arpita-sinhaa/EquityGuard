@@ -6,6 +6,12 @@ from app.services.gemini_service import generate_org_recommendation
 
 router = APIRouter()
 
+
+def _slice_label(domain: str, slice_data: dict) -> str:
+    if domain.lower() == "lending":
+        return f"{slice_data.get('gender', 'Unknown')} | {slice_data.get('education', 'Unknown')} | {slice_data.get('income_group', 'Unknown')}"
+    return f"{slice_data.get('race', 'Unknown')} | {slice_data.get('sex', 'Unknown')} | {slice_data.get('age_group', 'Unknown')}"
+
 @router.post("/audit", response_model=OrganizationAuditResponse)
 async def audit_organization(request: OrganizationAuditRequest):
     # Process decisions to find flagged slices via audit engine
@@ -20,7 +26,7 @@ async def audit_organization(request: OrganizationAuditRequest):
     # Map prioritized slices
     remediation_priorities = []
     for s in flagged_slices[:3]: # top 3
-        slice_name = f"{s['race']} {s['sex']} {s['age_group']}"
+        slice_name = _slice_label(request.domain, s)
         remediation_priorities.append(
             RemediationPriority(
                 slice=slice_name,

@@ -4,13 +4,15 @@ from app.services.bigquery_service import get_intersectional_slice
 
 
 def process_audit_decisions(domain: str, decisions: List[OrganizationDecision]) -> dict:
+    normalized_domain = domain.lower()
+    min_sample = 50 if normalized_domain == "lending" else 100
     slice_counts = {}
 
     # -------------------------
     # GROUP DECISIONS
     # -------------------------
     for d in decisions:
-        if domain.lower() == "lending":
+        if normalized_domain == "lending":
             key = (d.gender, d.education, d.income_group)
         else:
             key = (d.sex, d.race, d.age_group)
@@ -29,7 +31,7 @@ def process_audit_decisions(domain: str, decisions: List[OrganizationDecision]) 
     # -------------------------
     for key, data in slice_counts.items():
 
-        if domain.lower() == "lending":
+        if normalized_domain == "lending":
             slice_stats = get_intersectional_slice(
                 domain,
                 gender=key[0],
@@ -45,7 +47,7 @@ def process_audit_decisions(domain: str, decisions: List[OrganizationDecision]) 
             )
 
         # Skip insufficient data
-        if not slice_stats or slice_stats.get("sample_size", 0) < 50:
+        if not slice_stats or slice_stats.get("sample_size", 0) < min_sample:
             continue
 
         # -------------------------
@@ -56,7 +58,7 @@ def process_audit_decisions(domain: str, decisions: List[OrganizationDecision]) 
         if dr is None:
             continue  # skip invalid ratios
 
-        if domain.lower() == "hiring":
+        if normalized_domain == "hiring":
             is_flagged = slice_stats.get("fourfifths_breach", False)
         else:
             is_flagged = dr > 1.5
@@ -77,7 +79,7 @@ def process_audit_decisions(domain: str, decisions: List[OrganizationDecision]) 
         # -------------------------
         # RESULT FORMAT
         # -------------------------
-        if domain.lower() == "lending":
+        if normalized_domain == "lending":
             result = {
                 "gender": key[0],
                 "education": key[1],
@@ -93,6 +95,9 @@ def process_audit_decisions(domain: str, decisions: List[OrganizationDecision]) 
         result.update({
             "disparity_ratio": dr,
             "priority": priority,
+            "approval_rate": slice_stats.get("approval_rate"),
+            "reference_approval_rate": slice_stats.get("reference_approval_rate"),
+            "sample_size": slice_stats.get("sample_size"),
             "remediation_note": slice_stats.get("remediation_note", "")
         })
 

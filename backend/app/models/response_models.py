@@ -18,11 +18,18 @@ class BiasSummary(BaseModel):
     flagged_count: int
 
 class FlaggedSlice(BaseModel):
-    sex: str
-    race: str
-    age_group: str
+    sex: Optional[str] = None
+    race: Optional[str] = None
+    age_group: Optional[str] = None
+    gender: Optional[str] = None
+    education: Optional[str] = None
+    income_group: Optional[str] = None
     disparity_ratio: float
     priority: str
+    approval_rate: Optional[float] = None
+    reference_approval_rate: Optional[float] = None
+    sample_size: Optional[int] = None
+    remediation_note: Optional[str] = None
 
 class RemediationPriority(BaseModel):
     slice: str

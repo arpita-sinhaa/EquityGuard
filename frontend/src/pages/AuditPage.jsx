@@ -3,6 +3,31 @@ import Papa from 'papaparse';
 import { AlertTriangle, CheckCircle, FileText, Flag, TrendingUp, Upload, X } from 'lucide-react';
 import { auditOrganization } from '../services/api';
 
+function readField(row, aliases) {
+  for (const alias of aliases) {
+    if (row[alias] !== undefined && row[alias] !== null && String(row[alias]).trim() !== '') {
+      return String(row[alias]).trim();
+    }
+  }
+  return '';
+}
+
+function parseOutcome(value) {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+
+  if (['1', 'true', 'yes', 'approved', 'approve', 'accept'].includes(normalized)) {
+    return 1;
+  }
+  if (['0', 'false', 'no', 'denied', 'deny', 'reject', 'rejected'].includes(normalized)) {
+    return 0;
+  }
+
+  const numeric = Number.parseInt(normalized, 10);
+  return Number.isNaN(numeric) ? 0 : numeric > 0 ? 1 : 0;
+}
+
 function getPriorityClass(priority) {
   const value = (priority || '').toLowerCase();
   if (value === 'high') return 'high';
@@ -69,12 +94,48 @@ export default function AuditPage() {
       skipEmptyLines: true,
       complete: async ({ data }) => {
         try {
-          const decisions = data.map((row) => ({
-            sex: row.sex || 'Unknown',
-            race: row.race || 'Unknown',
-            age_group: row.age_group || 'Unknown',
-            outcome: parseInt(row.outcome, 10) || 0,
-          }));
+          const decisions = data.map((row) => {
+            if (domain === 'lending') {
+              return {
+                gender: readField(row, ['gender', 'Gender']),
+                education: readField(row, ['education', 'Education']),
+                income_group: readField(row, ['income_group', 'IncomeGroup', 'incomeGroup']),
+                outcome: parseOutcome(readField(row, ['outcome', 'Outcome', 'decision', 'Decision', 'loan_status', 'Loan_Status'])),
+              };
+            }
+
+            return {
+              sex: readField(row, ['sex', 'Sex']),
+              race: readField(row, ['race', 'Race']),
+              age_group: readField(row, ['age_group', 'AgeGroup', 'ageGroup']),
+              outcome: parseOutcome(readField(row, ['outcome', 'Outcome', 'decision', 'Decision'])),
+            };
+          });
+
+          const hasInvalidRows = decisions.some((decision) => {
+            if (domain === 'lending') {
+              return !decision.gender || !decision.education || !decision.income_group;
+            }
+            return !decision.sex || !decision.race || !decision.age_group;
+          });
+
+          if (!decisions.length) {
+            setResult({ error: true, message: 'CSV file contains no valid rows.' });
+            setLoading(false);
+            return;
+          }
+
+          if (hasInvalidRows) {
+            setResult({
+              error: true,
+              message:
+                domain === 'lending'
+                  ? 'CSV is missing required lending columns/values: gender, education, income_group.'
+                  : 'CSV is missing required hiring columns/values: sex, race, age_group.',
+            });
+            setLoading(false);
+            return;
+          }
 
           const response = await auditOrganization({ domain, decisions });
           setResult(response);
@@ -143,7 +204,11 @@ export default function AuditPage() {
               <input ref={fileInputRef} type="file" accept=".csv" onChange={(event) => handleFile(event.target.files?.[0])} />
               <Upload size={28} style={{ marginBottom: '0.55rem', color: 'var(--primary)' }} />
               <p style={{ fontWeight: 700, marginBottom: '0.25rem' }}>Drop CSV file or click to browse</p>
-              <p className="muted-text">Expected columns: sex, race, age_group, outcome</p>
+              <p className="muted-text">
+                {domain === 'lending'
+                  ? 'Expected columns: gender, education, income_group, outcome'
+                  : 'Expected columns: sex, race, age_group, outcome'}
+              </p>
             </div>
           ) : (
             <div className="file-chip-wrap">
@@ -173,16 +238,16 @@ export default function AuditPage() {
           <p className="panel-title">Format Requirements</p>
 
           <div className="meta-line">
-            <span className="muted-text">sex</span>
-            <strong>Male / Female / Other</strong>
+            <span className="muted-text">{domain === 'lending' ? 'gender' : 'sex'}</span>
+            <strong>{domain === 'lending' ? 'Male / Female' : 'Male / Female / Other'}</strong>
           </div>
           <div className="meta-line">
-            <span className="muted-text">race</span>
-            <strong>Black, White, Hispanic, Asian, ...</strong>
+            <span className="muted-text">{domain === 'lending' ? 'education' : 'race'}</span>
+            <strong>{domain === 'lending' ? 'Graduate / Not Graduate' : 'Black, White, Hispanic, Asian, ...'}</strong>
           </div>
           <div className="meta-line">
-            <span className="muted-text">age_group</span>
-            <strong>25-34, 35-44, 45-54, ...</strong>
+            <span className="muted-text">{domain === 'lending' ? 'income_group' : 'age_group'}</span>
+            <strong>{domain === 'lending' ? 'low, mid, high, very_high' : '25-34, 35-44, 45-54, ...'}</strong>
           </div>
           <div className="meta-line">
             <span className="muted-text">outcome</span>
@@ -216,7 +281,7 @@ export default function AuditPage() {
             <section className="panel" style={{ marginBottom: '0.9rem' }}>
               <p className="info-label" style={{ marginBottom: '0.5rem' }}>
                 <TrendingUp size={12} />
-                Gemini Summary
+                AI Summary
               </p>
               <p className="muted-text">{result.gemini_report}</p>
             </section>
@@ -237,13 +302,21 @@ export default function AuditPage() {
                     const approvalPct = Math.round((slice.approval_rate || 0) * 100);
                     const refPct = Math.round((slice.reference_approval_rate || 0) * 100);
                     const barColor = priority === 'high' ? 'var(--danger)' : priority === 'medium' ? 'var(--warning)' : 'var(--success)';
+                    const sliceName = domain === 'lending' ? `${slice.gender} ${slice.education}` : `${slice.race} ${slice.sex}`;
+                    const sliceDetail =
+                      domain === 'lending'
+                        ? `Income: ${slice.income_group} • n = ${slice.sample_size?.toLocaleString() || 'n/a'}`
+                        : `Age: ${slice.age_group} • n = ${slice.sample_size?.toLocaleString() || 'n/a'}`;
+                    const keyId = domain === 'lending'
+                      ? `${slice.gender}-${slice.education}-${slice.income_group}-${index}`
+                      : `${slice.race}-${slice.sex}-${slice.age_group}-${index}`;
 
                     return (
-                      <article key={`${slice.race}-${slice.sex}-${slice.age_group}-${index}`} className={`slice-card ${priority}`}>
+                      <article key={keyId} className={`slice-card ${priority}`}>
                         <div className="slice-head">
                           <div>
-                            <p className="slice-name">{slice.race} {slice.sex}</p>
-                            <p className="slice-detail">Age: {slice.age_group} • n = {slice.sample_size?.toLocaleString() || 'n/a'}</p>
+                            <p className="slice-name">{sliceName}</p>
+                            <p className="slice-detail">{sliceDetail}</p>
                           </div>
                           <div style={{ textAlign: 'right' }}>
                             <p className="slice-ratio" style={{ color: barColor }}>{slice.disparity_ratio?.toFixed(1)}x</p>
