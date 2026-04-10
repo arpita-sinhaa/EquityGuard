@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 class BiasData(BaseModel):
     approval_rate: float
@@ -12,6 +12,7 @@ class CitizenBiasResponse(BaseModel):
     data: Optional[BiasData] = None
     explanation: Optional[str] = None
     message: Optional[str] = None
+    counterfactuals: Optional[List[Dict[str, Any]]] = None
 
 class BiasSummary(BaseModel):
     total_records: int
