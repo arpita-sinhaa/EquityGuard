@@ -1,211 +1,317 @@
 # EquityGuard
 
-EquityGuard is a full-stack fairness analytics application for:
+A Fairness Intelligence Platform for Algorithmic Decision Systems
 
-1. Citizen-level bias checks (single profile lookup)
-2. Organization-level audits (batch decision analysis)
+---
 
-It supports both hiring and lending domains, uses BigQuery for production data lookup, and can generate plain-language insight text through OpenRouter.
+## Overview
 
-## What the app does
+EquityGuard is a full-stack fairness analytics platform designed to detect and explain statistical indications of bias in real-world decision systems.
 
-1. Citizen Check
-- Accepts demographic/profile inputs
-- Finds matching historical slice stats
-- Returns approval rate, disparity ratio, 4/5ths rule status, and explanation
+It provides:
 
-2. Organization Audit
-- Accepts bulk decision records
-- Detects flagged slices
-- Returns prioritized remediation guidance and summary
+* Citizen-level checks for individual transparency
+* Organization-level audits for systemic bias detection
+* Cloud-backed analytics using Google BigQuery
+* Explainability layer powered by LLMs (OpenRouter)
 
-## Project structure
+---
 
-EquityGuard/
-- backend/
-	- app/
-		- main.py
-		- routes/
-		- services/
-		- models/
-- frontend/
-	- src/
-		- pages/
-		- services/
-- preprocess_hiring.py
-- preprocess_lending.py
-- hiring_bias_data.csv
-- lending_bias_data.csv
+## Problem Statement
 
-## Tech stack
+Modern algorithmic systems influence hiring, lending, and other high-stakes decisions. However, these systems often operate as black boxes, making it difficult to detect:
 
-- Backend: FastAPI
-- Frontend: React + Vite
-- Data: Google BigQuery
-- LLM insight layer: OpenRouter Chat Completions API
+* Disparities across demographic groups
+* Violations of fairness standards (e.g., four-fifths rule)
+* Systemic bias in historical decisions
 
-## Data pipeline inputs
+EquityGuard addresses this by combining statistical fairness metrics with clear, interpretable explanations.
 
-1. Hiring pipeline source
-- Adult income-style dataset
-- Script: preprocess_hiring.py
-- Output: hiring_bias_data.csv
+---
 
-2. Lending pipeline source
-- Kaggle Loan Prediction dataset
-- Source reference: https://www.kaggle.com/datasets/altruistdelhite04/loan-prediction-problem-dataset/data
-- Script: preprocess_lending.py
-- Output: lending_bias_data.csv
+## Core Features
 
-## Lending input mapping
+### Citizen Bias Check
 
-The lending citizen flow uses these fields:
+* Accepts user demographic inputs
+* Retrieves historical decision statistics
+* Returns:
 
-- gender
-- education
-- income_group
+  * Approval rate
+  * Disparity ratio
+  * Four-fifths rule evaluation
+  * Plain-language explanation
 
-Income group ranges used in UI and request docs:
+---
 
-- low: INR 0 to 3,000
-- mid: INR 3,001 to 6,000
-- high: INR 6,001 to 10,000
-- very_high: above INR 10,000
+### Organization Audit
 
-## BigQuery tables expected
+* Accepts bulk decision records (CSV / JSON)
+* Aggregates decisions into intersectional slices
+* Detects statistically significant bias
+* Outputs:
 
-Dataset: bias_stats
+  * Flagged demographic groups
+  * Priority levels (low / medium / high)
+  * Remediation guidance
 
-1. Hiring table
-- intersectional_slices
-- key fields: sex, race, age_group
+---
 
-2. Lending table
-- lending_bias_data
-- key fields: Gender, Education, income_group
+## System Architecture
 
-## Backend setup
+```plaintext
+User Input → React Frontend → FastAPI Backend → BigQuery → Fairness Engine → LLM Explanation
+```
 
-From project root:
+### Key Layers:
 
-1. Create and activate environment
+* Frontend: React + Vite
+* Backend: FastAPI (Python)
+* Data Layer: Google BigQuery
+* Explainability: OpenRouter (LLM abstraction)
 
-	 Windows PowerShell:
-	 cd backend
-	 python -m venv venv
-	 .\venv\Scripts\Activate
+---
 
-2. Install dependencies
+## Data Pipelines
 
-	 pip install fastapi uvicorn python-dotenv google-cloud-bigquery pandas
+### Hiring Domain
 
-3. Configure backend environment
+* Dataset: UCI Adult Census Income
+* Script: `preprocess_hiring.py`
+* Output: `hiring_bias_data.csv`
+* Features:
 
-	 Create backend/.env with values like:
+  * sex, race, age_group
 
-	 USE_MOCK_DATA=false  
-     GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/credentials.json
+---
 
-	 OPENROUTER_API_KEY=your_openrouter_key  
-	 OPENROUTER_API_URL=https://openrouter.ai/api/v1  
-	 OPENROUTER_MODEL=openrouter/auto  
+### Lending Domain
 
-4. Run backend
+* Dataset: Loan Prediction Dataset (Kaggle)
+* Source: https://www.kaggle.com/datasets/altruistdelhite04/loan-prediction-problem-dataset/data
+* Script: `preprocess_lending.py`
+* Output: `lending_bias_data.csv`
+* Features:
 
-	 .\venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+  * gender, education, income_group
 
-Backend docs:
+---
 
-- Swagger UI: http://localhost:8000/docs
+## Lending Income Normalization
 
-## Frontend setup
+To ensure comparability, raw income values are grouped into normalized buckets:
 
-From project root:
+| Income Group | Range (INR)    |
+| ------------ | -------------- |
+| low          | 0 – 3,000      |
+| mid          | 3,001 – 6,000  |
+| high         | 6,001 – 10,000 |
+| very_high    | 10,000+        |
 
-1. Install and run frontend
+---
 
-	 cd frontend
-	 npm install
-	 npm run dev
+## BigQuery Data Model
 
-2. Open app
+Dataset: `bias_stats`
 
-	 http://localhost:5173
+### Hiring Table
 
-## API examples
+```
+intersectional_slices
+```
 
-1. Citizen check (hiring)
+Columns:
 
+* sex, race, age_group
+* approval_rate, disparity_ratio, sample_size
+
+---
+
+### Lending Table
+
+```
+lending_bias_data
+```
+
+Columns:
+
+* Gender, Education, income_group
+* approval_rate, disparity_ratio, sample_size
+
+---
+
+## Backend Setup
+
+### 1. Create environment
+
+```bash
+cd backend
+python -m venv venv
+.\venv\Scripts\activate
+```
+
+### 2. Install dependencies
+
+```bash
+pip install fastapi uvicorn python-dotenv google-cloud-bigquery pandas
+```
+
+### 3. Configure environment
+
+Create `backend/.env`:
+
+```env
+USE_MOCK_DATA=false
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+
+OPENROUTER_API_KEY=your_key
+OPENROUTER_API_URL=https://openrouter.ai/api/v1
+OPENROUTER_MODEL=openrouter/auto
+```
+
+### 4. Run backend
+
+```bash
+uvicorn app.main:app --reload
+```
+
+---
+
+## Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open:
+
+```
+http://localhost:5173
+```
+
+---
+
+## API Endpoints
+
+### Citizen Bias Check
+
+```
 POST /check-bias
+```
 
+#### Hiring Example:
+
+```json
 {
-	"domain": "hiring",
-	"sex": "Female",
-	"race": "Black",
-	"age_group": "45-54"
+  "domain": "hiring",
+  "sex": "Female",
+  "race": "Black",
+  "age_group": "45-54"
 }
+```
 
-2. Citizen check (lending)
+#### Lending Example:
 
-POST /check-bias
-
+```json
 {
-	"domain": "lending",
-	"gender": "Female",
-	"education": "Graduate",
-	"income_group": "mid"
+  "domain": "lending",
+  "gender": "Female",
+  "education": "Graduate",
+  "income_group": "mid"
 }
+```
 
-3. Organization audit
+---
 
+### Organization Audit
+
+```
 POST /audit
+```
 
+```json
 {
-	"domain": "hiring",
-	"decisions": [
-		{
-			"sex": "Female",
-			"race": "Black",
-			"age_group": "45-54",
-			"outcome": 0
-		}
-	]
+  "domain": "lending",
+  "decisions": [
+    {
+      "gender": "Female",
+      "education": "Graduate",
+      "income_group": "mid",
+      "outcome": 0
+    }
+  ]
 }
+```
 
-## Runtime behavior notes
+---
 
-1. Mock vs BigQuery
-- USE_MOCK_DATA=true forces mock responses
-- USE_MOCK_DATA=false uses BigQuery lookups
+## Fairness Methodology
 
-2. Minimum sample-size checks in citizen route
-- Hiring requires sample_size >= 100
-- Lending requires sample_size >= 50
+* Disparity Ratio: compares group approval rates against a reference group
+* Four-Fifths Rule: detects under-selection (< 80%)
+* Sample Size Filtering: avoids unreliable statistical conclusions
 
-3. OpenRouter fallback behavior
-- If OPENROUTER_API_KEY is missing, explanation methods return fallback text
-- If OpenRouter rejects request, backend logs OpenRouter error details
+Priority classification:
+
+* High: disparity > 3
+* Medium: disparity > 1.5
+* Low: otherwise
+
+---
+
+## Runtime Behavior
+
+* `USE_MOCK_DATA=true` → uses mock data
+* `USE_MOCK_DATA=false` → queries BigQuery
+* LLM fallback triggers if API key is not configured
+
+---
 
 ## Troubleshooting
 
-1. CREDENTIAL PATH is None
-- Ensure backend/.env exists
-- Ensure GOOGLE_APPLICATION_CREDENTIALS points to a real JSON file
-- Restart backend process fully
+### BigQuery errors
 
-2. Still seeing mock data
-- Confirm USE_MOCK_DATA=false in backend/.env
-- Restart backend after env change
+* Verify credentials path
+* Ensure correct IAM permissions
 
-3. OpenRouter returns provider error
-- Verify OPENROUTER_API_KEY
-- Verify OPENROUTER_API_URL is https://openrouter.ai/api/v1
-- Try OPENROUTER_MODEL=openrouter/auto
+### No results returned
 
-4. Frontend cannot start
-- Run npm install in frontend
-- Ensure backend is up on port 8000
+* Check if slice exists in dataset
+* Verify correct casing of fields
 
-## Current status
+### LLM errors
 
-The backend and frontend are wired for dual-domain citizen checks and organization audits, with lending-specific inputs aligned to the lending CSV pipeline fields.
+* Validate API key
+* Use fallback model if needed
+
+---
+
+## Current Status
+
+* Dual-domain support (Hiring + Lending)
+* Real-world datasets integrated
+* BigQuery production pipeline
+* Organization audit functionality implemented
+
+---
+
+## Future Enhancements
+
+* Interactive bias visualization dashboards
+* Additional domains (insurance, education, healthcare)
+* Time-based drift analysis
+* Role-based access for organizations
+
+---
+
+## Author
+
+Krishita Garg
+
+---
+
+## Summary
+
+EquityGuard enables transparent, explainable, and auditable decision systems by combining statistical fairness analysis with accessible insights for both individuals and organizations.
