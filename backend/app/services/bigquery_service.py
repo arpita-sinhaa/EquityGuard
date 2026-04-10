@@ -5,108 +5,94 @@ from typing import Optional, Dict
 # -------------------------
 # CONFIG
 # -------------------------
+PROJECT_ID = "equityguard-492819"
+DATASET = "bias_stats"
+
+bq_client = None
+
+# -------------------------
+# ENV CHECK
+# -------------------------
 def _is_mock_enabled() -> bool:
     value = os.getenv("USE_MOCK_DATA")
 
-    # Fallback to backend/.env when python-dotenv is not installed.
     if value is None:
         env_path = Path(__file__).resolve().parents[2] / ".env"
         if env_path.exists():
-            for line in env_path.read_text(encoding="utf-8").splitlines():
-                stripped = line.strip()
-                if not stripped or stripped.startswith("#") or "=" not in stripped:
-                    continue
-                key, raw = stripped.split("=", 1)
-                if key.strip() == "USE_MOCK_DATA":
-                    value = raw.strip().strip('"').strip("'")
-                    break
+            for line in env_path.read_text().splitlines():
+                if "=" in line:
+                    key, val = line.split("=", 1)
+                    if key.strip() == "USE_MOCK_DATA":
+                        value = val.strip()
+                        break
 
-    # Default to BigQuery mode unless mock is explicitly enabled.
-    value = (value or "false").strip().lower()
-    return value in {"1", "true", "yes", "on"}
+    return str(value).lower() in {"1", "true", "yes"}
 
-PROJECT_ID = "equityguard-492819"
-DATASET = "bias_stats"
-TABLE = "intersectional_slices"
-
-TABLE_ID = f"{PROJECT_ID}.{DATASET}.{TABLE}"
-
-# Initialize BigQuery client once (efficient)
-bq_client = None
+# -------------------------
+# TABLE SELECTOR
+# -------------------------
+def get_table_id(domain: str) -> str:
+    if domain.lower() == "lending":
+        return f"{PROJECT_ID}.{DATASET}.lending_bias_data"
+    return f"{PROJECT_ID}.{DATASET}.intersectional_slices"
 
 # -------------------------
 # MAIN ROUTER
 # -------------------------
-def get_intersectional_slice(domain: str, sex: str, race: str, age_group: str) -> Dict:
+def get_intersectional_slice(domain: str, **kwargs) -> Dict:
     if _is_mock_enabled():
-        print("Using MOCK data")
-        return get_mock_slice(domain, sex, race, age_group)
-    else:
-        print("Using BIGQUERY data")
-        print("CREDENTIAL PATH:", os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-        result = get_bigquery_slice(domain, sex, race, age_group)
+        return get_mock_slice(domain, **kwargs)
 
-        # Fallback if no data found
-        if result is None:
-            return {
-                "domain": domain,
-                "sex": sex,
-                "race": race,
-                "age_group": age_group,
-                "approval_rate": None,
-                "sample_size": 0,
-                "disparity_ratio": None,
-                "fourfifths_breach": False,
-                "reference_approval_rate": None,
-                "remediation_priority": "none",
-                "remediation_note": "No data available for this group"
-            }
+    result = get_bigquery_slice(domain, **kwargs)
 
-        return result
-
-# -------------------------
-# MOCK DATA
-# -------------------------
-def get_mock_slice(domain: str, sex: str, race: str, age_group: str) -> Dict:
-    mock_db = {
-        ("hiring", "Female", "Black", "45-54"): {
-            "domain": "hiring",
-            "sex": "Female",
-            "race": "Black",
-            "age_group": "45-54",
-            "approval_rate": 0.09,
-            "sample_size": 120,
-            "disparity_ratio": 4.6,
-            "fourfifths_breach": True,
-            "reference_approval_rate": 0.41,
-            "remediation_priority": "high",
-            "remediation_note": "Review standard tenure criteria which has historic demographic skew."
-        }
-    }
-
-    key = (domain.lower(), sex, race, age_group)
-
-    return mock_db.get(
-        key,
-        {
+    if result is None:
+        return {
             "domain": domain,
-            "sex": sex,
-            "race": race,
-            "age_group": age_group,
-            "approval_rate": 0.20,
-            "sample_size": 50,
+            "approval_rate": None,
+            "sample_size": 0,
+            "disparity_ratio": None,
+            "fourfifths_breach": False,
+            "reference_approval_rate": None,
+            "remediation_priority": "none",
+            "remediation_note": "No data available"
+        }
+
+    return result
+
+# -------------------------
+# MOCK DATA (OPTIONAL)
+# -------------------------
+def get_mock_slice(domain: str, **kwargs) -> Dict:
+    if domain.lower() == "lending":
+        return {
+            "domain": domain,
+            "Gender": kwargs.get("gender"),
+            "Education": kwargs.get("education"),
+            "income_group": kwargs.get("income_group"),
+            "approval_rate": 0.62,
+            "sample_size": 60,
             "disparity_ratio": 1.1,
             "fourfifths_breach": False,
-            "reference_approval_rate": 0.22,
-            "remediation_priority": "none",
-            "remediation_note": ""
+            "reference_approval_rate": 0.59,
+            "remediation_priority": "low",
+            "remediation_note": "Mock fallback lending data",
         }
-    )
+
+    return {
+        "domain": domain,
+        "approval_rate": 0.25,
+        "sample_size": 120,
+        "disparity_ratio": 1.2,
+        "fourfifths_breach": False,
+        "reference_approval_rate": 0.30,
+        "remediation_priority": "low",
+        "remediation_note": "Mock fallback data"
+    }
 
 # -------------------------
 # BIGQUERY FETCH
 # -------------------------
-def get_bigquery_slice(domain: str, sex: str, race: str, age_group: str) -> Optional[Dict]:
+def get_bigquery_slice(domain: str, **kwargs) -> Optional[Dict]:
     global bq_client
 
     try:
@@ -115,33 +101,56 @@ def get_bigquery_slice(domain: str, sex: str, race: str, age_group: str) -> Opti
         if bq_client is None:
             bq_client = bigquery.Client()
 
-        query = f"""
-            SELECT *
-            FROM `{TABLE_ID}`
-            WHERE domain = @domain
-              AND sex = @sex
-              AND race = @race
-              AND age_group = @age_group
-            LIMIT 1
-        """
+        table_id = get_table_id(domain)
 
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("domain", "STRING", domain),
-                bigquery.ScalarQueryParameter("sex", "STRING", sex),
-                bigquery.ScalarQueryParameter("race", "STRING", race),
-                bigquery.ScalarQueryParameter("age_group", "STRING", age_group),
+        if domain.lower() == "lending":
+            required_keys = ["gender", "education", "income_group"]
+        else:
+            required_keys = ["sex", "race", "age_group"]
+
+        # Validate inputs
+        missing = [k for k in required_keys if k not in kwargs]
+        if missing:
+            raise ValueError(f"Missing required parameters: {missing}")
+
+        if domain.lower() == "lending":
+            query = f"""
+                SELECT *
+                FROM `{table_id}`
+                                WHERE LOWER(Gender) = LOWER(@gender)
+                                    AND LOWER(Education) = LOWER(@education)
+                                    AND LOWER(income_group) = LOWER(@income_group)
+                LIMIT 1
+            """
+
+            params = [
+                bigquery.ScalarQueryParameter("gender", "STRING", kwargs["gender"]),
+                bigquery.ScalarQueryParameter("education", "STRING", kwargs["education"]),
+                bigquery.ScalarQueryParameter("income_group", "STRING", kwargs["income_group"]),
             ]
-        )
 
-        query_job = bq_client.query(query, job_config=job_config)
-        results = query_job.result()
+        else:
+            query = f"""
+                SELECT *
+                FROM `{table_id}`
+                WHERE sex = @sex
+                  AND race = @race
+                  AND age_group = @age_group
+                LIMIT 1
+            """
+
+            params = [
+                bigquery.ScalarQueryParameter("sex", "STRING", kwargs["sex"]),
+                bigquery.ScalarQueryParameter("race", "STRING", kwargs["race"]),
+                bigquery.ScalarQueryParameter("age_group", "STRING", kwargs["age_group"]),
+            ]
+
+        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        results = bq_client.query(query, job_config=job_config).result()
 
         for row in results:
-            print("BQ data found")
             return dict(row)
 
-        print("No matching data found in BQ")
         return None
 
     except Exception as e:

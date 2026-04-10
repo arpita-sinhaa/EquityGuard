@@ -10,6 +10,14 @@ const DOMAIN_OPTIONS = [
 const SEX_OPTIONS = ['Female', 'Male'];
 const RACE_OPTIONS = ['Black', 'White', 'Hispanic', 'Asian', 'American Indian or Alaska Native', 'Other'];
 const AGE_OPTIONS = ['18-24', '25-34', '35-44', '45-54', '55+'];
+const GENDER_OPTIONS = ['Female', 'Male'];
+const EDUCATION_OPTIONS = ['Graduate', 'Not Graduate'];
+const INCOME_GROUP_OPTIONS = [
+  { value: 'low', label: 'Low (<= INR 3,000)' },
+  { value: 'mid', label: 'Mid (INR 3,001 - 6,000)' },
+  { value: 'high', label: 'High (INR 6,001 - 10,000)' },
+  { value: 'very_high', label: 'Very High (> INR 10,000)' },
+];
 
 function getSeverityClass(ratio) {
   if (!ratio) return 'low';
@@ -59,6 +67,9 @@ export default function CitizenPage() {
     sex: 'Female',
     race: 'Black',
     age_group: '45-54',
+    gender: 'Female',
+    education: 'Graduate',
+    income_group: 'mid',
   });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -73,7 +84,22 @@ export default function CitizenPage() {
     setResult(null);
 
     try {
-      const response = await checkBias(formData);
+      const payload =
+        formData.domain === 'lending'
+          ? {
+              domain: formData.domain,
+              gender: formData.gender,
+              education: formData.education,
+              income_group: formData.income_group,
+            }
+          : {
+              domain: formData.domain,
+              sex: formData.sex,
+              race: formData.race,
+              age_group: formData.age_group,
+            };
+
+      const response = await checkBias(payload);
       setResult({
         status: response.status || 'OK',
         data: response.data || response,
@@ -90,7 +116,10 @@ export default function CitizenPage() {
   const severity = getSeverityClass(data?.disparity_ratio);
   const approvalPct = data ? Math.round((data.approval_rate || 0) * 100) : 0;
   const referencePct = data ? Math.round((data.reference_approval_rate || 0) * 100) : 0;
-  const profileLabel = `${formData.race} ${formData.sex}, ${formData.age_group}`;
+  const profileLabel =
+    formData.domain === 'lending'
+      ? `${formData.gender}, ${formData.education}, ${formData.income_group}`
+      : `${formData.race} ${formData.sex}, ${formData.age_group}`;
 
   return (
     <section className="page-wrap">
@@ -123,20 +152,51 @@ export default function CitizenPage() {
               </div>
             </div>
 
-            <div className="field">
-              <label className="field-label">Sex</label>
-              <StyledSelect name="sex" value={formData.sex} onChange={handleChange} options={SEX_OPTIONS} />
-            </div>
+            {formData.domain === 'lending' ? (
+              <>
+                <div className="field">
+                  <label className="field-label">Gender</label>
+                  <StyledSelect name="gender" value={formData.gender} onChange={handleChange} options={GENDER_OPTIONS} />
+                </div>
 
-            <div className="field">
-              <label className="field-label">Race / Ethnicity</label>
-              <StyledSelect name="race" value={formData.race} onChange={handleChange} options={RACE_OPTIONS} />
-            </div>
+                <div className="field">
+                  <label className="field-label">Education</label>
+                  <StyledSelect
+                    name="education"
+                    value={formData.education}
+                    onChange={handleChange}
+                    options={EDUCATION_OPTIONS}
+                  />
+                </div>
 
-            <div className="field">
-              <label className="field-label">Age Group</label>
-              <StyledSelect name="age_group" value={formData.age_group} onChange={handleChange} options={AGE_OPTIONS} />
-            </div>
+                <div className="field">
+                  <label className="field-label">Income Group</label>
+                  <StyledSelect
+                    name="income_group"
+                    value={formData.income_group}
+                    onChange={handleChange}
+                    options={INCOME_GROUP_OPTIONS}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="field">
+                  <label className="field-label">Sex</label>
+                  <StyledSelect name="sex" value={formData.sex} onChange={handleChange} options={SEX_OPTIONS} />
+                </div>
+
+                <div className="field">
+                  <label className="field-label">Race / Ethnicity</label>
+                  <StyledSelect name="race" value={formData.race} onChange={handleChange} options={RACE_OPTIONS} />
+                </div>
+
+                <div className="field">
+                  <label className="field-label">Age Group</label>
+                  <StyledSelect name="age_group" value={formData.age_group} onChange={handleChange} options={AGE_OPTIONS} />
+                </div>
+              </>
+            )}
 
             <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? (
@@ -178,7 +238,11 @@ export default function CitizenPage() {
                 <p className={`ratio-value ${severity}`}>
                   {data.disparity_ratio?.toFixed(1)}x
                 </p>
-                <p className="muted-text">Reference baseline: White Male, 25-34 (1.0x)</p>
+                <p className="muted-text">
+                  {formData.domain === 'lending'
+                    ? 'Reference baseline: Male Graduate (1.0x)'
+                    : 'Reference baseline: White Male, 25-34 (1.0x)'}
+                </p>
               </div>
 
               <div className="bar-row">
@@ -221,7 +285,7 @@ export default function CitizenPage() {
                 <section className="info-box">
                   <p className="info-label">
                     <Info size={12} />
-                    Gemini Insight
+                    AI Insight
                   </p>
                   <p className="muted-text">{result.explanation}</p>
                 </section>

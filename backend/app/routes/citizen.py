@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from app.models.request_models import CitizenBiasRequest
 from app.models.response_models import CitizenBiasResponse, BiasData
 from app.services.bigquery_service import get_intersectional_slice
@@ -9,14 +9,25 @@ router = APIRouter()
 @router.post("/check-bias", response_model=CitizenBiasResponse)
 async def check_bias(request: CitizenBiasRequest):
     # Lookup in BigQuery / Mock
-    slice_stats = get_intersectional_slice(
-        request.domain,
-        request.sex,
-        request.race,
-        request.age_group
-    )
+    domain = request.domain.lower()
+
+    if domain == "lending":
+        slice_stats = get_intersectional_slice(
+            request.domain,
+            gender=request.gender,
+            education=request.education,
+            income_group=request.income_group
+        )
+    else:
+        slice_stats = get_intersectional_slice(
+            request.domain,
+            sex=request.sex,
+            race=request.race,
+            age_group=request.age_group
+        )
     
-    if not slice_stats or slice_stats.get("sample_size", 0) < 100:
+    min_sample_size = 50 if domain == "lending" else 100
+    if not slice_stats or slice_stats.get("sample_size", 0) < min_sample_size:
         return CitizenBiasResponse(
             status="INSUFFICIENT_DATA",
             message="Not enough historical data to generate a reliable statistical indication."
@@ -33,9 +44,9 @@ async def check_bias(request: CitizenBiasRequest):
     explanation = None
     is_flagged = False
     
-    if request.domain.lower() == "hiring" and data.fourfifths_breach:
+    if domain == "hiring" and data.fourfifths_breach:
         is_flagged = True
-    elif request.domain.lower() == "lending" and data.disparity_ratio > 1.5:
+    elif domain == "lending" and data.disparity_ratio > 1.5:
         is_flagged = True
     elif data.disparity_ratio > 1.5:
         is_flagged = True

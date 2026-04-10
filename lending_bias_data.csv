@@ -1,0 +1,6 @@
+Gender,Education,income_group,approval_rate,sample_size,disparity_ratio,relative_rate,fourfifths_breach,reference_approval_rate,domain,remediation_priority,remediation_note
+Female,Graduate,mid,0.6481481481481481,54,0.9116883116883118,1.0968660968660968,False,0.5909090909090909,lending,low,Review loan approval criteria and credit scoring policies
+Male,Graduate,mid,0.7804878048780488,164,0.7571022727272727,1.320825515947467,False,0.5909090909090909,lending,low,Review loan approval criteria and credit scoring policies
+Male,Graduate,high,0.7339449541284404,109,0.8051136363636363,1.242060691601976,False,0.5909090909090909,lending,low,Review loan approval criteria and credit scoring policies
+Male,Graduate,very_high,0.6323529411764706,68,0.9344608879492601,1.0701357466063348,False,0.5909090909090909,lending,low,Review loan approval criteria and credit scoring policies
+Male,Not Graduate,mid,0.6756756756756757,74,0.8745454545454546,1.1434511434511434,False,0.5909090909090909,lending,low,Review loan approval criteria and credit scoring policies

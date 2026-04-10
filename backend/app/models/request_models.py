@@ -1,11 +1,43 @@
 from pydantic import BaseModel
+from pydantic import Field
+from pydantic import model_validator
 from typing import List
+from typing import Optional
 
 class CitizenBiasRequest(BaseModel):
     domain: str
-    sex: str
-    race: str
-    age_group: str
+    sex: Optional[str] = None
+    race: Optional[str] = None
+    age_group: Optional[str] = None
+    gender: Optional[str] = None
+    education: Optional[str] = None
+    income_group: Optional[str] = Field(
+        default=None,
+        description="Lending only: low (<= INR 3,000), mid (INR 3,001-6,000), high (INR 6,001-10,000), very_high (> INR 10,000)",
+    )
+
+    @model_validator(mode="after")
+    def validate_domain_fields(self):
+        domain = self.domain.lower()
+
+        if domain == "lending":
+            required = {
+                "gender": self.gender,
+                "education": self.education,
+                "income_group": self.income_group,
+            }
+        else:
+            required = {
+                "sex": self.sex,
+                "race": self.race,
+                "age_group": self.age_group,
+            }
+
+        missing = [key for key, value in required.items() if not value]
+        if missing:
+            raise ValueError(f"Missing required fields for {domain}: {', '.join(missing)}")
+
+        return self
 
 class OrganizationDecision(BaseModel):
     sex: str
