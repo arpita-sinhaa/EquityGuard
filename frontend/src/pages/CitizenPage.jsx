@@ -104,6 +104,7 @@ export default function CitizenPage() {
         status: response.status || 'OK',
         data: response.data || response,
         explanation: response.explanation || 'No explanation available.',
+        counterfactuals: response.counterfactuals || null,
       });
     } catch {
       setResult({ status: 'ERROR', explanation: 'Something went wrong. Please try again.' });
@@ -113,6 +114,7 @@ export default function CitizenPage() {
   };
 
   const data = result?.data;
+  const counterfactuals = result?.counterfactuals;
   const severity = getSeverityClass(data?.disparity_ratio);
   const approvalPct = data ? Math.round((data.approval_rate || 0) * 100) : 0;
   const referencePct = data ? Math.round((data.reference_approval_rate || 0) * 100) : 0;
@@ -290,6 +292,28 @@ export default function CitizenPage() {
                   <p className="muted-text">{result.explanation}</p>
                 </section>
               )}
+
+              <section className="info-box" style={{ marginTop: '1rem' }}>
+                <p className="info-label">
+                  <Info size={12} />
+                  Counterfactual Scenarios
+                </p>
+                {counterfactuals && counterfactuals.length > 0 ? (
+                  <div className="counterfactual-list">
+                    {counterfactuals.map((item, index) => (
+                      <div key={`${item.changed_attribute}-${index}`} className="counterfactual-card">
+                        <p className="muted-text">
+                          <strong>{item.changed_attribute.replace(/_/g, ' ')}</strong>
+                        </p>
+                        <p>{`Changed to: ${item.new_value}`}</p>
+                        <p>{`Approval rate: ${Math.round((item.approval_rate || 0) * 100)}%`}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="muted-text">No significant counterfactual changes found.</p>
+                )}
+              </section>
             </div>
           )}
         </article>
