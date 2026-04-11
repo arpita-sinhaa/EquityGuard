@@ -134,6 +134,7 @@ export default function CitizenPage() {
         explanation: response.explanation || "No explanation available.",
         counterfactuals: response.counterfactuals || null,
         legal_rights: response.legal_rights || null,
+        remediation: response.remediation || null,
       });
     } catch {
       setResult({
@@ -442,6 +443,25 @@ export default function CitizenPage() {
                     Your Rights
                   </p>
                   <p>{result.legal_rights}</p>
+                </section>
+              )}
+              {result?.remediation && (
+                <section className="info-box" style={{ marginTop: "1rem" }}>
+                  <p className="info-label">
+                    <Info size={12} />
+                    How to Fix This
+                  </p>
+
+                  <p>
+                    Increase approval rate to{" "}
+                    <b>{Math.round(result.remediation.required_rate * 100)}%</b>
+                  </p>
+
+                  <p>
+                    This requires{" "}
+                    <b>{Math.round(result.remediation.extra_per_100)}</b> more
+                    approvals per 100 applicants
+                  </p>
                 </section>
               )}
             </div>

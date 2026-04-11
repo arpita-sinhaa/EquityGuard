@@ -57,7 +57,18 @@ async def check_bias(request: CitizenBiasRequest):
         sample_size=slice_stats.get("sample_size", 0)
     )
     
-    # Generate counterfactuals
+    # Remediation simulator
+    remediation = None
+    if data.disparity_ratio < 0.8:
+        reference_approval_rate = 1.0  # assume for now
+        required_rate = 0.8 * reference_approval_rate
+        increase_needed = required_rate - data.approval_rate
+        extra_per_100 = increase_needed * 100
+        remediation = {
+            "required_rate": required_rate,
+            "increase_needed": increase_needed,
+            "extra_per_100": extra_per_100
+        }
     counterfactuals = []
     if domain == "lending":
         current_attrs = {
@@ -122,5 +133,6 @@ async def check_bias(request: CitizenBiasRequest):
         data=data,
         explanation=explanation,
         legal_rights=legal_rights,
-        counterfactuals=counterfactuals if counterfactuals else None
+        counterfactuals=counterfactuals if counterfactuals else None,
+        remediation=remediation
     )
