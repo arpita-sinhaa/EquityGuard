@@ -15,6 +15,7 @@ class CitizenBiasRequest(BaseModel):
         default=None,
         description="Lending only: low (<= INR 3,000), mid (INR 3,001-6,000), high (INR 6,001-10,000), very_high (> INR 10,000)",
     )
+    country: Optional[str] = None
 
     @model_validator(mode="after")
     def validate_domain_fields(self):
