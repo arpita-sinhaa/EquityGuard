@@ -12,6 +12,7 @@ class CitizenBiasResponse(BaseModel):
     data: Optional[BiasData] = None
     explanation: Optional[str] = None
     message: Optional[str] = None
+    legal_rights: Optional[str] = None
     counterfactuals: Optional[List[Dict[str, Any]]] = None
 
 class BiasSummary(BaseModel):

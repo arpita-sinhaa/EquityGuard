@@ -6,6 +6,23 @@ from app.services.gemini_service import generate_citizen_explanation
 
 router = APIRouter()
 
+
+def get_legal_rights(country: str) -> str:
+    if not country:
+        return "Under DPDP Act 2023, you have the right to grievance redressal."
+
+    country = country.strip().lower()
+
+    mapping = {
+        "india": "Under DPDP Act 2023, you have the right to grievance redressal.",
+        "eu": "Under EU AI Act Article 22, you have the right to explanation.",
+        "us": "Under EEOC guidelines, discrimination is prohibited.",
+        "uk": "Under UK GDPR Article 22, you can request human review.",
+    }
+
+    return mapping.get(country, "You have the right to question automated decisions and seek human review.")
+
+
 @router.post("/check-bias", response_model=CitizenBiasResponse)
 async def check_bias(request: CitizenBiasRequest):
     # Lookup in BigQuery / Mock
@@ -97,9 +114,13 @@ async def check_bias(request: CitizenBiasRequest):
     else:
         explanation = "Data indicates approval rates for this group are comparable to the reference groups. No statistical indication of bias was flagged."
 
+    country = (request.country or "India").strip()
+    legal_rights = get_legal_rights(country)
+
     return CitizenBiasResponse(
         status="OK",
         data=data,
         explanation=explanation,
+        legal_rights=legal_rights,
         counterfactuals=counterfactuals if counterfactuals else None
     )
