@@ -14,6 +14,7 @@ class CitizenBiasResponse(BaseModel):
     message: Optional[str] = None
     legal_rights: Optional[str] = None
     counterfactuals: Optional[List[Dict[str, Any]]] = None
+    remediation: Optional[Dict[str, float]] = None
 
 class BiasSummary(BaseModel):
     total_records: int
