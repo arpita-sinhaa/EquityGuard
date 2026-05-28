@@ -39,7 +39,7 @@ def _call_openrouter(prompt: str, model: str = DEFAULT_MODEL) -> str:
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "http://localhost:8000"),
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://equityguard-f02r.onrender.com"),
             "X-Title": os.getenv("OPENROUTER_APP_NAME", "EquityGuard")
         },
         method="POST"
