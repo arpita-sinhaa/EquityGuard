@@ -84,30 +84,110 @@ def get_intersectional_slice(domain: str, **kwargs) -> Dict:
 # -------------------------
 def get_mock_slice(domain: str, **kwargs) -> Dict:
     if domain.lower() == "lending":
+
+        approval_rate = 0.50
+
+        gender = str(kwargs.get("gender", "")).lower()
+        education = str(kwargs.get("education", "")).lower()
+        income = str(kwargs.get("income_group", "")).lower()
+
+        if gender == "male":
+            approval_rate += 0.03
+        elif gender == "female":
+            approval_rate -= 0.03
+
+        if education == "graduate":
+            approval_rate += 0.12
+        elif education == "non graduate":
+            approval_rate -= 0.08
+
+        if income == "low":
+            approval_rate -= 0.20
+        elif income == "mid":
+            approval_rate += 0.00
+        elif income == "high":
+            approval_rate += 0.12
+        elif income == "very_high":
+            approval_rate += 0.22
+
+        approval_rate = max(0.05, min(0.95, approval_rate))
+
+        reference_rate = 0.75
+
+        disparity_ratio = round(reference_rate / approval_rate, 2)
+
         return {
             "domain": domain,
             "Gender": kwargs.get("gender"),
             "Education": kwargs.get("education"),
             "income_group": kwargs.get("income_group"),
-            "approval_rate": 0.62,
+            "approval_rate": round(approval_rate, 2),
             "sample_size": 60,
-            "disparity_ratio": 1.1,
-            "fourfifths_breach": False,
-            "reference_approval_rate": 0.59,
-            "remediation_priority": "low",
-            "remediation_note": "Mock fallback lending data",
+            "disparity_ratio": disparity_ratio,
+            "fourfifths_breach": approval_rate < (0.8 * reference_rate),
+            "reference_approval_rate": reference_rate,
+            "remediation_priority": "high" if disparity_ratio > 1.5 else "medium" if disparity_ratio > 1.25 else "low",
+            "remediation_note": "Mock lending analysis"
         }
+
+    approval_rate = 0.50
+
+    race = str(kwargs.get("race", "")).lower()
+    sex = str(kwargs.get("sex", "")).lower()
+    age = str(kwargs.get("age_group", "")).lower()
+    country = str(kwargs.get("country", "")).lower()
+
+    if race == "black":
+        approval_rate -= 0.15
+    elif race == "hispanic":
+        approval_rate -= 0.08
+    elif race == "asian":
+        approval_rate += 0.06
+    elif race == "white":
+        approval_rate += 0.12
+    elif race == "american indian or alaska native":
+        approval_rate -= 0.12
+
+    if sex == "female":
+        approval_rate -= 0.04
+    elif sex == "male":
+        approval_rate += 0.04
+
+    if age == "18-24":
+        approval_rate -= 0.08
+    elif age == "25-34":
+        approval_rate += 0.10
+    elif age == "35-44":
+        approval_rate += 0.05
+    elif age == "45-54":
+        approval_rate -= 0.04
+    elif age == "55+":
+        approval_rate -= 0.10
+
+    if country == "us":
+        approval_rate += 0.04
+    elif country == "uk":
+        approval_rate += 0.02
+    elif country == "eu":
+        approval_rate += 0.01
+
+    approval_rate = max(0.05, min(0.95, approval_rate))
+
+    reference_rate = 0.75
+
+    disparity_ratio = round(reference_rate / approval_rate, 2)
 
     return {
         "domain": domain,
-        "approval_rate": 0.25,
+        "approval_rate": round(approval_rate, 2),
         "sample_size": 120,
-        "disparity_ratio": 1.2,
-        "fourfifths_breach": False,
-        "reference_approval_rate": 0.30,
-        "remediation_priority": "low",
-        "remediation_note": "Mock fallback data"
+        "disparity_ratio": disparity_ratio,
+        "fourfifths_breach": approval_rate < (0.8 * reference_rate),
+        "reference_approval_rate": reference_rate,
+        "remediation_priority": "high" if disparity_ratio > 1.5 else "medium" if disparity_ratio > 1.25 else "low",
+        "remediation_note": "Mock hiring analysis"
     }
+
 
 # -------------------------
 # BIGQUERY FETCH

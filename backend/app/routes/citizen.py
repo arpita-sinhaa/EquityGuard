@@ -37,11 +37,12 @@ async def check_bias(request: CitizenBiasRequest):
         )
     else:
         slice_stats = get_intersectional_slice(
-            request.domain,
-            sex=request.sex,
-            race=request.race,
-            age_group=request.age_group
-        )
+    request.domain,
+    country=request.country,
+    sex=request.sex,
+    race=request.race,
+    age_group=request.age_group
+)
     
     min_sample_size = 50 if domain == "lending" else 100
     if not slice_stats or slice_stats.get("sample_size", 0) < min_sample_size:
